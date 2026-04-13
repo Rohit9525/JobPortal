@@ -235,6 +235,67 @@ mvn test
 
 ---
 
+## AWS Deployment + CI/CD (GitHub Actions + Docker Hub)
+
+This repository now includes:
+
+- GitHub Actions workflow: `.github/workflows/cicd-aws-dockerhub.yml`
+- AWS deploy compose file: `deploy/docker-compose.aws.yml`
+- AWS deploy env template: `deploy/.env.aws.example`
+
+### What the pipeline does
+
+1. On every push to `main`, builds all backend and frontend Docker images
+2. Pushes them to Docker Hub with two tags:
+  - short commit SHA (for immutable deploys)
+  - `latest`
+3. SSH into AWS EC2, pulls latest repo state, and runs:
+  - `docker compose -f deploy/docker-compose.aws.yml pull`
+  - `docker compose -f deploy/docker-compose.aws.yml up -d`
+
+### GitHub repository secrets required
+
+Add these in GitHub: `Settings -> Secrets and variables -> Actions`.
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN` (Docker Hub access token)
+- `AWS_EC2_HOST` (public IP or DNS)
+- `AWS_EC2_USER` (usually `ubuntu` for Ubuntu AMI, `ec2-user` for Amazon Linux)
+- `AWS_EC2_SSH_KEY` (private key content)
+- `AWS_EC2_PORT` (optional, default 22)
+- `AWS_APP_DIR` (optional, e.g. `/home/ubuntu/careerbridge`)
+
+### EC2 one-time setup
+
+1. Launch an EC2 instance (Ubuntu recommended)
+2. Open inbound ports in Security Group:
+  - `22` (SSH)
+  - `3000, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8761, 8888`
+  - `3307` only if you need external DB access (otherwise keep closed)
+3. Install Docker + Docker Compose plugin on EC2
+4. Clone this repository on EC2 into `$AWS_APP_DIR`
+5. Create deploy env file on EC2:
+
+```bash
+cd <your-app-dir>
+cp deploy/.env.aws.example deploy/.env.aws
+# edit deploy/.env.aws with real production values
+```
+
+6. Push to `main` to trigger deployment
+
+### Manual deploy command on EC2
+
+```bash
+cd <your-app-dir>
+export DOCKERHUB_USERNAME=<your-dockerhub-username>
+export IMAGE_TAG=<short-commit-sha-or-latest>
+docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws pull
+docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws up -d
+```
+
+---
+
 ---
 
 ## Backend Architecture

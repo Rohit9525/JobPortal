@@ -1,0 +1,273 @@
+name: careerbridge-aws
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-spring-svc: &spring-svc
+  restart: unless-stopped
+  networks:
+    - careerbridge-net
+  logging: *logging
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: careerbridge-mysql
+    restart: unless-stopped
+    networks:
+      - careerbridge-net
+    logging: *logging
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: auth_db
+      MYSQL_USER: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/docker/mysql:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u $${MYSQL_USERNAME} --password=$${MYSQL_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: careerbridge-redis
+    restart: unless-stopped
+    networks:
+      - careerbridge-net
+    logging: *logging
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: careerbridge-zookeeper
+    restart: unless-stopped
+    networks:
+      - careerbridge-net
+    logging: *logging
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: careerbridge-kafka
+    restart: unless-stopped
+    networks:
+      - careerbridge-net
+    logging: *logging
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  eureka-server:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-eureka-server:${IMAGE_TAG}
+    container_name: careerbridge-eureka
+    <<: *spring-svc
+    environment:
+      EUREKA_HOSTNAME: eureka-server
+    ports:
+      - "8761:8761"
+
+  config-server:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-config-server:${IMAGE_TAG}
+    container_name: careerbridge-config
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.0}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    volumes:
+      - ../backend/config-repo:/config-repo:ro
+    ports:
+      - "8888:8888"
+
+  api-gateway:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-api-gateway:${IMAGE_TAG}
+    container_name: careerbridge-gateway
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - redis
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.0}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    ports:
+      - "8080:8080"
+
+  auth-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-auth-service:${IMAGE_TAG}
+    container_name: careerbridge-auth
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - mysql
+      - kafka
+      - redis
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/auth_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8081:8081"
+
+  job-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-job-service:${IMAGE_TAG}
+    container_name: careerbridge-job
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - mysql
+      - kafka
+      - redis
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/job_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8082:8082"
+
+  application-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-application-service:${IMAGE_TAG}
+    container_name: careerbridge-application
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - mysql
+      - kafka
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/application_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    ports:
+      - "8083:8083"
+
+  file-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-file-service:${IMAGE_TAG}
+    container_name: careerbridge-file
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    ports:
+      - "8084:8084"
+
+  notification-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-notification-service:${IMAGE_TAG}
+    container_name: careerbridge-notification
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - mysql
+      - kafka
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/notification_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "8085:8085"
+
+  admin-service:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-admin-service:${IMAGE_TAG}
+    container_name: careerbridge-admin
+    <<: *spring-svc
+    depends_on:
+      - eureka-server
+      - config-server
+      - redis
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      CONFIG_SERVER_URL: http://config-server:8888/
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    ports:
+      - "8086:8086"
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/careerbridge-frontend:${IMAGE_TAG}
+    container_name: careerbridge-frontend
+    restart: unless-stopped
+    networks:
+      - careerbridge-net
+    logging: *logging
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:80"
+
+networks:
+  careerbridge-net:
+    name: careerbridge-network
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  kafka_data:
