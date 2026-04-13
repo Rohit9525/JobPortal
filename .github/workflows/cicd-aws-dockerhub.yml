@@ -169,10 +169,7 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
-            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-            export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
-
-            cat > .env <<EOF
+            cat > .env <<'EOF'
 DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
 IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
 JWT_SECRET=${{ secrets.JWT_SECRET }}
