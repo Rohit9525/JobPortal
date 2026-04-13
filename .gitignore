@@ -35,3 +35,4 @@ monitoring/loki/data/
 crash.log
 *.tfplan
 terraform.tfvars
+infra/terraform/*.pem

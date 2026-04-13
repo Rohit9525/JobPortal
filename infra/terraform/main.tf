@@ -1,5 +1,19 @@
-data "aws_ssm_parameter" "ubuntu_ami" {
-  name = "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+data "aws_ami" "ubuntu_ami" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = [
+      "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*",
+      "ubuntu/images/hvm-ssd-gp3/ubuntu-jammy-22.04-amd64-server-*"
+    ]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 data "aws_vpc" "default" {
@@ -14,7 +28,7 @@ data "aws_subnets" "default" {
 }
 
 resource "aws_security_group" "careerbridge_sg" {
-  name        = "careerbridge-sg"
+  name_prefix = "careerbridge-sg-"
   description = "Security group for CareerBridge EC2"
   vpc_id      = data.aws_vpc.default.id
 
@@ -135,11 +149,11 @@ resource "aws_key_pair" "careerbridge_key" {
 }
 
 locals {
-  effective_key_name = var.public_key == "" ? var.key_pair_name : aws_key_pair.careerbridge_key[0].key_name
+  effective_key_name = var.public_key != "" ? aws_key_pair.careerbridge_key[0].key_name : (var.key_pair_name != "" ? var.key_pair_name : null)
 }
 
 resource "aws_instance" "careerbridge_ec2" {
-  ami                    = data.aws_ssm_parameter.ubuntu_ami.value
+  ami                    = data.aws_ami.ubuntu_ami.id
   instance_type          = var.instance_type
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.careerbridge_sg.id]
@@ -151,23 +165,19 @@ resource "aws_instance" "careerbridge_ec2" {
     delete_on_termination = true
   }
 
-  user_data = <<-EOF
-              #!/usr/bin/env bash
-              set -eux
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg git
-              install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              chmod a+r /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              systemctl enable docker
-              systemctl start docker
-              usermod -aG docker ubuntu || true
-              mkdir -p /home/ubuntu/careerbridge
-              chown -R ubuntu:ubuntu /home/ubuntu/careerbridge
-              EOF
+  user_data = templatefile("${path.module}/userdata.sh.tftpl", {
+    project_repo_url       = var.project_repo_url
+    project_dir            = var.project_dir
+    jwt_secret             = var.jwt_secret
+    mysql_root_password    = var.mysql_root_password
+    mysql_username         = var.mysql_username
+    mysql_password         = var.mysql_password
+    cloudinary_cloud_name  = var.cloudinary_cloud_name
+    cloudinary_api_key     = var.cloudinary_api_key
+    cloudinary_api_secret  = var.cloudinary_api_secret
+    mail_username          = var.mail_username
+    mail_password          = var.mail_password
+  })
 
   tags = {
     Name        = "careerbridge-ec2"
