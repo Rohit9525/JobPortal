@@ -172,6 +172,6 @@ jobs:
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
 
-            docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws pull
-            docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws up -d
+            docker compose -f deploy/docker-compose.aws.yml pull
+            docker compose -f deploy/docker-compose.aws.yml up -d
             docker image prune -f
