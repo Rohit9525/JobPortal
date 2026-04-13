@@ -6,6 +6,7 @@ This Terraform module creates:
 - 1 security group with app ports
 - Optional key pair creation from provided public key
 - Docker + Docker Compose plugin via `user_data`
+- 1 static Elastic IP address for consistent connectivity
 
 ## Prerequisites
 
@@ -42,21 +43,23 @@ terraform apply -auto-approve
 
 ## Outputs
 
+- `elastic_ip` (primary — static address)
 - `instance_id`
 - `public_ip`
-- `public_dns`
 - `security_group_id`
 - `ssh_user`
 
 ## Connect to EC2
 
 ```bash
-ssh -i /path/to/private-key.pem ubuntu@<public_ip>
+ssh -i /path/to/private-key.pem ubuntu@<elastic_ip>
 ```
+
+Use the `elastic_ip` output — it remains unchanged across instance restarts and redeployments.
 
 ## Next step after provisioning
 
 1. Clone repo on instance: `git clone https://github.com/Rohit9525/JobPortal.git`
-2. Copy env file: `cp deploy/.env.aws.example deploy/.env.aws`
+2. Copy env file for manual deploys only: `cp deploy/.env.aws.example deploy/.env.aws`
 3. Add GitHub Actions secrets from `deploy/GITHUB_SECRETS.md`
 4. Push to `main` to trigger CI/CD deploy

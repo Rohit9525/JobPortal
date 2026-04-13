@@ -186,3 +186,17 @@ resource "aws_instance" "careerbridge_ec2" {
     Environment = var.environment
   }
 }
+
+resource "aws_eip" "careerbridge_eip" {
+  instance = aws_instance.careerbridge_ec2.id
+  domain   = "vpc"
+
+  tags = {
+    Name        = "careerbridge-eip"
+    Project     = "CareerBridge"
+    ManagedBy   = "Terraform"
+    Environment = var.environment
+  }
+
+  depends_on = [aws_instance.careerbridge_ec2]
+}

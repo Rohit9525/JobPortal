@@ -241,7 +241,7 @@ This repository now includes:
 
 - GitHub Actions workflow: `.github/workflows/cicd-aws-dockerhub.yml`
 - AWS deploy compose file: `deploy/docker-compose.aws.yml`
-- AWS deploy env template: `deploy/.env.aws.example`
+- AWS deploy env template for manual deploys: `deploy/.env.aws.example`
 - Terraform EC2 provisioning: `infra/terraform/`
 
 ### What the pipeline does
@@ -279,8 +279,7 @@ Add these in GitHub: `Settings -> Secrets and variables -> Actions`.
 
 ```bash
 cd <your-app-dir>
-cp deploy/.env.aws.example deploy/.env.aws
-# edit deploy/.env.aws with real production values
+# create .env with real production values
 ```
 
 6. Push to `main` to trigger deployment
@@ -291,8 +290,8 @@ cp deploy/.env.aws.example deploy/.env.aws
 cd <your-app-dir>
 export DOCKERHUB_USERNAME=<your-dockerhub-username>
 export IMAGE_TAG=<short-commit-sha-or-latest>
-docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws pull
-docker compose -f deploy/docker-compose.aws.yml --env-file deploy/.env.aws up -d
+docker compose -f deploy/docker-compose.aws.yml --env-file .env pull
+docker compose -f deploy/docker-compose.aws.yml --env-file .env up -d
 ```
 
 ---

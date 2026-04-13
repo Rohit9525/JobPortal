@@ -3,14 +3,14 @@ output "instance_id" {
   value       = aws_instance.careerbridge_ec2.id
 }
 
-output "public_ip" {
-  description = "EC2 public IP"
-  value       = aws_instance.careerbridge_ec2.public_ip
+output "elastic_ip" {
+  description = "EC2 static Elastic IP address"
+  value       = aws_eip.careerbridge_eip.public_ip
 }
 
-output "public_dns" {
-  description = "EC2 public DNS"
-  value       = aws_instance.careerbridge_ec2.public_dns
+output "public_ip" {
+  description = "EC2 public IP (deprecated: use elastic_ip for static address)"
+  value       = aws_instance.careerbridge_ec2.public_ip
 }
 
 output "security_group_id" {

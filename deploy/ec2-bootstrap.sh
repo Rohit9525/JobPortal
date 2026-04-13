@@ -43,4 +43,5 @@ fi
 
 echo "[7/7] Bootstrap complete"
 echo "IMPORTANT: Re-login to the server so docker group changes apply."
-echo "Then create deploy/.env.aws from deploy/.env.aws.example inside $APP_DIR."
+echo "The GitHub Actions deploy job writes $APP_DIR/.env automatically from repository secrets."
+echo "For manual deploys, create $APP_DIR/.env or pass an equivalent env file to docker compose."
