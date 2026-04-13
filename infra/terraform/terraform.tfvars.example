@@ -1,0 +1,15 @@
+aws_region       = "ap-south-1"
+environment      = "prod"
+instance_type    = "t3.large"
+root_volume_size = 40
+
+# Restrict this to your IP in production, e.g. "49.37.120.10/32"
+allowed_cidr = "0.0.0.0/0"
+
+# Option 1: Use existing AWS key pair
+key_pair_name = "careerbridge-key"
+public_key    = ""
+
+# Option 2: Create key pair with a public key (paste full ssh-rsa/ed25519 key)
+# key_pair_name = "careerbridge-key"
+# public_key    = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ... your@laptop"

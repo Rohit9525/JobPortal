@@ -26,3 +26,12 @@ monitoring/sonarqube/extensions/
 
 # Docker volumes (runtime data)
 monitoring/loki/data/
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+terraform.tfvars

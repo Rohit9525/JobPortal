@@ -242,6 +242,7 @@ This repository now includes:
 - GitHub Actions workflow: `.github/workflows/cicd-aws-dockerhub.yml`
 - AWS deploy compose file: `deploy/docker-compose.aws.yml`
 - AWS deploy env template: `deploy/.env.aws.example`
+- Terraform EC2 provisioning: `infra/terraform/`
 
 ### What the pipeline does
 
