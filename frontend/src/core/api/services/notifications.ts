@@ -2,8 +2,8 @@ import api from '../axios'
 import type { PageResponse } from './common'
 
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
-const BASE_URL = (viteEnv?.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
-const API_BASE_URL = `${BASE_URL}/api/v1`
+const BASE_URL = (viteEnv?.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+const API_BASE_URL = BASE_URL ? `${BASE_URL}/api/v1` : '/api/v1'
 
 export interface NotificationApiResponse {
   id: number
