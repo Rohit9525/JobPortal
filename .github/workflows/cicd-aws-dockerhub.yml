@@ -169,22 +169,21 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
-            cat > .env <<'EOF'
-DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }}
-MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
-CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
-MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-TRACING_ENABLED=false
-TRACING_SAMPLING_PROBABILITY=0.0
-ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans
-EOF
+            : > .env
+            printf '%s\n' "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
+            printf '%s\n' "IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}" >> .env
+            printf '%s\n' "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            printf '%s\n' "MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}" >> .env
+            printf '%s\n' "MYSQL_USERNAME=${{ secrets.MYSQL_USERNAME }}" >> .env
+            printf '%s\n' "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
+            printf '%s\n' "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env
+            printf '%s\n' "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env
+            printf '%s\n' "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env
+            printf '%s\n' "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+            printf '%s\n' "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+            printf '%s\n' "TRACING_ENABLED=false" >> .env
+            printf '%s\n' "TRACING_SAMPLING_PROBABILITY=0.0" >> .env
+            printf '%s\n' "ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans" >> .env
 
             chmod 600 .env
 
