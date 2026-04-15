@@ -327,7 +327,7 @@ export default function HomePage() {
                     setFeedbackForm((prev) => ({ ...prev, name: e.target.value }))
                     setFeedbackErrors((prev) => ({ ...prev, name: undefined }))
                   }}
-                  placeholder="e.g. Nikhil Kumar"
+                  placeholder="e.g. Rohit Kumar"
                   className={cn('input-field', feedbackErrors.name && 'input-error')}
                   maxLength={60}
                   aria-describedby={feedbackErrors.name ? 'feedback-name-error' : undefined}
